@@ -3,63 +3,135 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Factory Planner Calculator</title>
+  <title>卡牌工厂产出计算器</title>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
   <main class="container">
-    <h1>净产出计算器</h1>
-    <p class="subtitle">按配方添加每分钟执行速率，计算表观产出、消耗与净产出</p>
+    <h1>卡牌工厂产出计算器</h1>
+    <p class="subtitle">支持手动计算剩余产物与自动产线配平</p>
 
-    <section class="panel">
-      <div class="field">
-        <label for="recipe_query">配方（可输入搜索并下拉选择）</label>
-        <div class="inline_field_row">
-          <div class="recipe_combo_box" id="recipe_combo_box">
-            <div class="combo_input_row">
-              <input id="recipe_query" type="text" placeholder="输入关键字后点击右侧下拉按钮">
-              <button id="recipe_dropdown_btn" type="button" class="combo_toggle_btn" aria-label="展开配方列表">▼</button>
+    <div class="tab_bar">
+      <button id="tab_btn_manual" class="tab_btn tab_btn_active" type="button" data-tab="tab_manual">计算剩余产物</button>
+      <button id="tab_btn_balance" class="tab_btn" type="button" data-tab="tab_balance">计算产线配平</button>
+    </div>
+
+    <div id="tab_manual" class="tab_panel tab_panel_active">
+      <section class="panel">
+        <div class="field">
+          <label for="manual_recipe_query">配方（可输入搜索并下拉选择）</label>
+          <div class="inline_field_row">
+            <div class="recipe_combo_box" id="manual_recipe_combo_box">
+              <div class="combo_input_row">
+                <input id="manual_recipe_query" type="text" placeholder="输入关键字后点击右侧下拉按钮">
+                <button id="manual_recipe_dropdown_btn" type="button" class="combo_toggle_btn" aria-label="展开配方列表">▼</button>
+              </div>
+              <ul id="manual_recipe_dropdown_list" class="recipe_dropdown_list" hidden></ul>
             </div>
-            <ul id="recipe_dropdown_list" class="recipe_dropdown_list" hidden></ul>
+            <select id="manual_recipe_match_mode">
+              <option value="inputs_only">匹配原料</option>
+              <option value="outputs_only">匹配产物</option>
+              <option value="inputs_or_outputs" selected>同时匹配原料和产物</option>
+            </select>
           </div>
-          <select id="recipe_match_mode">
-            <option value="inputs_only">匹配原料</option>
-            <option value="outputs_only">匹配产物</option>
-            <option value="inputs_or_outputs" selected>同时匹配原料和产物</option>
-          </select>
         </div>
-      </div>
-      <div class="field">
-        <label for="recipe_rate_per_min">该配方执行速率（次/min）</label>
-        <input id="recipe_rate_per_min" type="number" min="0" step="0.01" value="10">
-      </div>
-      <button id="add_entry_btn" type="button">添加</button>
-    </section>
+        <div class="field">
+          <label for="manual_recipe_rate_per_min">该配方执行速率（次/min）</label>
+          <input id="manual_recipe_rate_per_min" type="number" min="0" step="0.01" value="10">
+        </div>
+        <button id="manual_add_entry_btn" type="button">添加</button>
+      </section>
 
-    <section class="panel">
-      <h2>已添加数据</h2>
-      <ul id="entry_list"></ul>
-      <button id="calc_btn" type="button">计算</button>
-    </section>
+      <section class="panel">
+        <h2>已添加数据</h2>
+        <ul id="manual_entry_list"></ul>
+        <button id="manual_calc_btn" type="button">计算</button>
+      </section>
 
-    <section class="panel result" id="result_box" aria-live="polite">
-      <h2>结果</h2>
-      <p id="result_summary">请先添加配方速率，再点击“计算”</p>
-      <div class="table_wrap">
-        <table id="result_table">
-          <thead>
-            <tr>
-              <th>物品</th>
-              <th>表观产出</th>
-              <th>总消耗</th>
-              <th>净产出</th>
-              <th>详情</th>
-            </tr>
-          </thead>
-          <tbody id="result_table_body"></tbody>
-        </table>
-      </div>
-    </section>
+      <section class="panel result" aria-live="polite">
+        <h2>结果</h2>
+        <p id="manual_result_summary">请先添加配方速率，再点击“计算”</p>
+        <div class="table_wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>物品</th>
+                <th>产出(/min)</th>
+                <th>消耗(/min)</th>
+                <th>剩余(/min)</th>
+                <th>详情</th>
+              </tr>
+            </thead>
+            <tbody id="manual_result_table_body"></tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+
+    <div id="tab_balance" class="tab_panel">
+      <section class="panel">
+        <div class="field">
+          <label for="balance_target_query">目标产物（可输入搜索并下拉选择）</label>
+          <div class="inline_field_row">
+            <div class="recipe_combo_box" id="balance_target_combo_box">
+              <div class="combo_input_row">
+                <input id="balance_target_query" type="text" placeholder="输入目标物品后点击右侧下拉按钮">
+                <button id="balance_target_dropdown_btn" type="button" class="combo_toggle_btn" aria-label="展开目标产物列表">▼</button>
+              </div>
+              <ul id="balance_target_dropdown_list" class="recipe_dropdown_list" hidden></ul>
+            </div>
+          </div>
+        </div>
+        <div class="field">
+          <label for="balance_target_rate_per_min">目标产物速率（/min）</label>
+          <input id="balance_target_rate_per_min" type="number" min="0" step="0.01" value="10">
+        </div>
+        <button id="balance_add_target_btn" type="button">添加目标</button>
+      </section>
+
+      <section class="panel">
+        <h2>目标列表</h2>
+        <ul id="balance_target_entry_list"></ul>
+        <button id="balance_calc_btn" type="button">计算产线配平</button>
+      </section>
+
+      <section class="panel">
+        <h2>配平结果</h2>
+        <p id="balance_result_summary">请先添加目标产物，再点击“计算产线配平”</p>
+      </section>
+
+      <section class="panel">
+        <h2>多余产物</h2>
+        <div class="table_wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>物品</th>
+                <th>多余速率(/min)</th>
+              </tr>
+            </thead>
+            <tbody id="balance_extra_table_body"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>物品汇总</h2>
+        <div class="table_wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>物品</th>
+                <th>需求(/min)</th>
+                <th>产出配方</th>
+                <th>执行速率(/min)</th>
+              </tr>
+            </thead>
+            <tbody id="balance_result_table_body"></tbody>
+          </table>
+        </div>
+      </section>
+    </div>
   </main>
 
   <script src="recipe_database.js"></script>

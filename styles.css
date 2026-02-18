@@ -32,6 +32,30 @@ h1 {
   color: var(--muted);
 }
 
+.tab_bar {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.tab_btn {
+  background: #e5e7eb;
+  color: #111827;
+}
+
+.tab_btn_active {
+  background: var(--accent);
+  color: #fff;
+}
+
+.tab_panel {
+  display: none;
+}
+
+.tab_panel_active {
+  display: block;
+}
+
 .panel {
   background: var(--card);
   border: 1px solid var(--border);
@@ -128,14 +152,8 @@ select {
   color: var(--muted);
 }
 
-#recipe_match_mode {
+#manual_recipe_match_mode {
   width: 220px;
-}
-
-.group_title {
-  margin: 16px 0 8px;
-  color: var(--muted);
-  font-size: 14px;
 }
 
 button {
@@ -151,12 +169,8 @@ button {
   margin-top: 0;
 }
 
-.result ul {
-  margin: 8px 0 0;
-  padding-left: 18px;
-}
-
-#entry_list {
+#manual_entry_list,
+#balance_target_entry_list {
   list-style: none;
   margin: 0 0 12px;
   padding: 0;
@@ -181,20 +195,20 @@ button {
   overflow-x: auto;
 }
 
-#result_table {
+table {
   width: 100%;
   border-collapse: collapse;
 }
 
-#result_table th,
-#result_table td {
+table th,
+table td {
   border: 1px solid var(--border);
   padding: 8px;
   text-align: left;
   vertical-align: top;
 }
 
-#result_table th {
+table th {
   background: #eef2f7;
 }
 
@@ -214,12 +228,26 @@ button {
   font-weight: 700;
 }
 
+.multiline_cell_line {
+  margin-bottom: 4px;
+}
+
+.multiline_cell_line:last-child {
+  margin-bottom: 0;
+}
+
 @media (max-width: 640px) {
   .inline_field_row {
     flex-direction: column;
   }
 
-  .inline_field_row select {
+  .inline_field_row select,
+  #manual_recipe_match_mode {
     width: 100%;
   }
+
+  .tab_bar {
+    flex-direction: column;
+  }
+
 }
