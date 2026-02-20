@@ -273,6 +273,152 @@ function manual_add_entry() {
   summary_element.textContent = "已添加一条数据。";
 }
 
+function manual_sort_and_merge_entries() {
+  const summary_element = document.getElementById("manual_result_summary");
+  if (manual_production_entries.length === 0) {
+    summary_element.textContent = "已添加数据为空，无需排序。";
+    return;
+  }
+
+  // 按配方ID合并速率，便于后续统一排序与计算。
+  const merged_rate_by_recipe_id = {};
+  manual_production_entries.forEach((entry_item) => {
+    if (!merged_rate_by_recipe_id[entry_item.recipe_id]) {
+      merged_rate_by_recipe_id[entry_item.recipe_id] = 0;
+    }
+    merged_rate_by_recipe_id[entry_item.recipe_id] += entry_item.recipe_rate_per_min;
+  });
+
+  const merged_entry_list = Object.entries(merged_rate_by_recipe_id).map(([recipe_id, recipe_rate_per_min]) => ({
+    recipe_id,
+    recipe_rate_per_min
+  }));
+
+  merged_entry_list.sort((entry_a, entry_b) => {
+    const number_a = parse_recipe_id_number(entry_a.recipe_id);
+    const number_b = parse_recipe_id_number(entry_b.recipe_id);
+    if (number_a !== number_b) {
+      return number_a - number_b;
+    }
+    return String(entry_a.recipe_id).localeCompare(String(entry_b.recipe_id), "zh-CN");
+  });
+
+  manual_production_entries.splice(0, manual_production_entries.length, ...merged_entry_list);
+  render_manual_entry_list();
+  summary_element.textContent = "已按配方ID合并并排序。";
+}
+
+function build_timestamp_text() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  const hour = String(now.getHours()).padStart(2, "0");
+  const minute = String(now.getMinutes()).padStart(2, "0");
+  const second = String(now.getSeconds()).padStart(2, "0");
+  return `${year}${month}${day}_${hour}${minute}${second}`;
+}
+
+function manual_export_entries_to_file() {
+  const summary_element = document.getElementById("manual_result_summary");
+  if (manual_production_entries.length === 0) {
+    summary_element.textContent = "已添加数据为空，无法导出。";
+    return;
+  }
+
+  const header_lines = [
+    "# manual_production_entries v1",
+    `# exported_at\t${new Date().toISOString()}`,
+    "# recipe_id\trecipe_rate_per_min"
+  ];
+  const entry_lines = manual_production_entries.map((entry_item) => `${entry_item.recipe_id}\t${entry_item.recipe_rate_per_min}`);
+  const txt_text = `${header_lines.join("\n")}\n${entry_lines.join("\n")}\n`;
+  const file_blob = new Blob([txt_text], { type: "text/plain;charset=utf-8" });
+  const object_url = URL.createObjectURL(file_blob);
+
+  const download_link = document.createElement("a");
+  download_link.href = object_url;
+  download_link.download = `manual_entries_${build_timestamp_text()}.txt`;
+  document.body.appendChild(download_link);
+  download_link.click();
+  download_link.remove();
+
+  URL.revokeObjectURL(object_url);
+  summary_element.textContent = "TXT 导出完成。";
+}
+
+function parse_manual_import_entries(txt_text) {
+  const line_list = String(txt_text || "").split(/\r?\n/);
+  const normalized_entries = [];
+  let skipped_count = 0;
+
+  line_list.forEach((raw_line) => {
+    const line_text = raw_line.trim();
+    if (!line_text || line_text.startsWith("#")) {
+      return;
+    }
+
+    let part_list = line_text.split(/\t+/).filter((part_text) => part_text !== "");
+    if (part_list.length < 2) {
+      part_list = line_text.split(/[,，]+/).map((part_text) => part_text.trim()).filter((part_text) => part_text !== "");
+    }
+    if (part_list.length < 2) {
+      part_list = line_text.split(/\s+/).filter((part_text) => part_text !== "");
+    }
+    if (part_list.length < 2) {
+      skipped_count += 1;
+      return;
+    }
+
+    const recipe_id = String(part_list[0] || "").trim();
+    const recipe_rate_per_min = Number(part_list[1]);
+
+    if (!recipe_id || !get_recipe_by_id(recipe_id)) {
+      skipped_count += 1;
+      return;
+    }
+    if (!Number.isFinite(recipe_rate_per_min) || recipe_rate_per_min < 0) {
+      skipped_count += 1;
+      return;
+    }
+
+    normalized_entries.push({ recipe_id, recipe_rate_per_min });
+  });
+
+  if (normalized_entries.length === 0 && skipped_count === 0) {
+    throw new Error("文件为空或仅包含注释。");
+  }
+
+  return { normalized_entries, skipped_count };
+}
+
+function manual_import_entries_from_file(file_object) {
+  const summary_element = document.getElementById("manual_result_summary");
+  if (!file_object) {
+    return;
+  }
+
+  const file_reader = new FileReader();
+  file_reader.onload = () => {
+    try {
+      const file_text = String(file_reader.result || "");
+      const parse_result = parse_manual_import_entries(file_text);
+
+      manual_production_entries.splice(0, manual_production_entries.length, ...parse_result.normalized_entries);
+      render_manual_entry_list();
+      clear_table_body("manual_result_table_body");
+
+      summary_element.textContent = `导入完成：有效 ${parse_result.normalized_entries.length} 条，跳过 ${parse_result.skipped_count} 条。`;
+    } catch (error_object) {
+      summary_element.textContent = `导入失败：${error_object instanceof Error ? error_object.message : "未知错误"}`;
+    }
+  };
+  file_reader.onerror = () => {
+    summary_element.textContent = "导入失败：文件读取错误。";
+  };
+  file_reader.readAsText(file_object, "UTF-8");
+}
+
 function manual_run_calculation() {
   const summary_element = document.getElementById("manual_result_summary");
   clear_table_body("manual_result_table_body");
@@ -714,7 +860,18 @@ function balance_add_target_entry() {
 
 function initialize_manual_events() {
   document.getElementById("manual_add_entry_btn").addEventListener("click", manual_add_entry);
+  document.getElementById("manual_sort_entries_btn").addEventListener("click", manual_sort_and_merge_entries);
   document.getElementById("manual_calc_btn").addEventListener("click", manual_run_calculation);
+  document.getElementById("manual_export_entries_btn").addEventListener("click", manual_export_entries_to_file);
+  document.getElementById("manual_import_entries_btn").addEventListener("click", () => {
+    const file_input = document.getElementById("manual_import_file_input");
+    file_input.value = "";
+    file_input.click();
+  });
+  document.getElementById("manual_import_file_input").addEventListener("change", (event_object) => {
+    const file_object = event_object.target.files && event_object.target.files[0];
+    manual_import_entries_from_file(file_object || null);
+  });
   document.getElementById("manual_recipe_dropdown_btn").addEventListener("click", toggle_manual_recipe_dropdown);
   document.getElementById("manual_recipe_query").addEventListener("click", (event_object) => event_object.target.select());
   document.getElementById("manual_recipe_query").addEventListener("input", () => {
